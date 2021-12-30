@@ -107,6 +107,7 @@ else
 
 $currentdir = pwd
 $vulnnames = @{}
+$vulnnamesVpr = @{}
 $chartstats = @{}
 $createreportsbyhost = $true
 $ipsbyvuln = @{}
@@ -791,7 +792,11 @@ function Create-HostReport($targethost, $foldername, $hosthtml)
 	$data = $data | %{$_.Replace("|TOTALMEDIUM|", $totalmed)}
 	$data = $data | %{$_.Replace("|TOTALLOW|", $totallow)}
 	$data = $data | %{$_.Replace("|TOTALINFORMATIONAL|", $totalinfo)}
-	$data = $data | %{$_.Replace("|TOTALINFORMATIONALVPR|", $totalinfo)}
+	$data = $data | %{$_.Replace("|TOTALCRITICALVPR|", $totalcritVpr)}
+	$data = $data | %{$_.Replace("|TOTALHIGHVPR|", $totalhighVpr)}
+	$data = $data | %{$_.Replace("|TOTALMEDIUMVPR|", $totalmedVpr)}
+	$data = $data | %{$_.Replace("|TOTALLOWVPR|", $totallowVpr)}
+	$data = $data | %{$_.Replace("|TOTALINFORMATIONALVPR|", $totalinfoVpr)}
 	$data = $data | %{$_.Replace("|REPORTINFO|", $strhtml)}
 	$data = $data | %{$_.Replace("|HOST|", $targethost.HostName + " (" + $targethost.IPAddress + ")")}
 	New-Item -Path $findingssavepath -ItemType File -Force | Out-Null
@@ -870,6 +875,20 @@ function Get-VulnCriticality($vulnname)
 	}
 }
 
+function Get-VulnCriticalityVpr($vulnname)
+{
+	$i = $vulnnamesVpr[$vulnname]
+	switch ($i) 
+	{
+		1		{ return "Critical" }
+		2		{ return "High" }
+		3		{ return "Medium" }
+		4		{ return "Low" }
+		5		{ return "Info" }
+		default	{ return "Unknown" }
+	}
+}
+
 # Create the main vulnerability report
 function Create-VulnReport($uniqvulns, $vulnhtml, $foldername, $vulnstats) 
 {
@@ -889,6 +908,42 @@ function Create-VulnReport($uniqvulns, $vulnhtml, $foldername, $vulnstats)
 		Write-Debug "here"
 	}
 		if ($vulnnames[$vuln.Name] -lt 5) #Omit Info class of vulns. Report is way too huge if they are included.
+		{ 
+			$strhtml += "<h6><span class=""vulnlabel " + $criticality.ToLower() + """>" + $criticality.ToUpper() + "</span>&nbsp;" + $vuln.Name + "</h6>"
+			$strhtml += $vulnhtml[$vuln.Name]
+			$strhtml += "</div>"
+		}
+	}
+
+	### Substitute Data in Template ###
+	$data = $data_master.Clone() 
+
+	foreach ($cat in $vulnstats.Keys)
+	{
+		$data = $data | %{$_.Replace("|" + $cat + "|", $vulnstats[$cat])}
+	}
+
+	$data = $data | %{$_.Replace("|REPORTINFO|", $strhtml)}
+	New-Item -Path $savepath -ItemType File -Force | Out-Null
+	$data | Set-Content -Path $savepath
+}
+
+# Create the main vulnerability report
+function Create-VulnReportVpr($uniqvulns, $vulnhtml, $foldername, $vulnstats) 
+{
+	$savename = "allvulns-vpr"
+	$template = "$htmltemplatedir\templateByVulnVpr.html"
+	$filename = "$savename.html"
+	$savepath = "$foldername\$filename"
+	$data_master = Get-Content $template 
+	
+	### Write Findings HTML ###
+	$strhtml = ""
+	
+	foreach ($vuln in ($vulnnamesVpr.GetEnumerator() | sort Value, Name)) 
+	{
+		$criticality = Get-VulnCriticalityVpr $vuln.Name
+		if ($vulnnamesVpr[$vuln.Name] -lt 5) #Omit Info class of vulns. Report is way too huge if they are included.
 		{ 
 			$strhtml += "<h6><span class=""vulnlabel " + $criticality.ToLower() + """>" + $criticality.ToUpper() + "</span>&nbsp;" + $vuln.Name + "</h6>"
 			$strhtml += $vulnhtml[$vuln.Name]
@@ -1128,12 +1183,20 @@ function Create-CISDashboard($allhostinfo, $hostreportlisthtml, $foldername, $co
 
 #region NESSUS FILE PARSING
 
-function Update-UniqueVulns($vulnname, $criticality) 
+function Update-UniqueVulns($vulnname, $criticality, $ciritcalityVpr) 
 {
 	if ($vulnnames.ContainsKey($vulnname) -eq $false) 
 	{
 		$script:vulnnames.Add($vulnname, $criticality)
 		Write-Debug "Update-UniqueVulns: Added uniqe vulnn to $ vulnnames: $vulnname"
+	}
+}
+
+function Update-UniqueVulnsVpr($vulnname, $criticality) 
+{
+	if ($vulnnamesVpr.ContainsKey($vulnname) -eq $false)
+	{
+		$script:vulnnamesVpr.Add($vulnname, $criticality)
 	}
 }
 
@@ -1298,30 +1361,35 @@ function Parse-NessusFile($path)
 			{
 				$object | Add-Member –MemberType NoteProperty –Name SortOrderVpr -Value 1
 				$object | Add-Member -MemberType NoteProperty -Name VprText -Value "Critical"
+				Update-UniqueVulnsVpr $ri.plugin_name 1
 				$numcrits_vpr += 1
 			} 
 			elseif($ri.vpr_score -ge 7) 
 			{
 				$object | Add-Member –MemberType NoteProperty –Name SortOrderVpr -Value 2
 				$object | Add-Member -MemberType NoteProperty -Name VprText -Value "High"
+				Update-UniqueVulnsVpr $ri.plugin_name 2
 				$numhighs_vpr += 1
 			}
 			elseif($ri.vpr_score -ge 4) 
 			{
 				$object | Add-Member –MemberType NoteProperty –Name SortOrderVpr -Value 3
 				$object | Add-Member -MemberType NoteProperty -Name VprText -Value "Medium"
+				Update-UniqueVulnsVpr $ri.plugin_name 3
 				$nummeds_vpr += 1
 			}
 			elseif($ri.vpr_score -ge 1) 
 			{
 				$object | Add-Member –MemberType NoteProperty –Name SortOrderVpr -Value 4
 				$object | Add-Member -MemberType NoteProperty -Name VprText -Value "Low"
+				Update-UniqueVulnsVpr $ri.plugin_name 4
 				$numlows_vpr += 1
 			}
 			else
 			{
 				$object | Add-Member –MemberType NoteProperty –Name SortOrderVpr -Value 5
 				$object | Add-Member -MemberType NoteProperty -Name VprText -Value "Info"
+				Update-UniqueVulnsVpr $ri.plugin_name 5
 				$numinfos_vpr += 1
 			}
 
@@ -1607,6 +1675,7 @@ else
 	# Create the report that shows all vulnerabilities
 	$allvulns = Get-VulnsByHost $allhostinfo 
 	Create-VulnReport $vulnnames $allvulns $reportbyvulnfolder $vulnstats
+	Create-VulnReportVpr $vulnnamesVpr $allvulns $reportbyvulnfolder $vulnstats
 
 	$csvpath = "$extraspath\hostinfo.csv"
 
@@ -1640,6 +1709,7 @@ Remove-Item -Path "$newfolder\templateFindings.html"
 Remove-Item -Path "$newfolder\templateFindingsVpr.html"
 Remove-Item -Path "$newfolder\templateDashboard.html"
 Remove-Item -Path "$newfolder\templateByVuln.html" -ErrorAction SilentlyContinue
+Remove-Item -Path "$newfolder\templateByVulnVpr.html" -ErrorAction SilentlyContinue
 
 # Done
 Write-Host "[*] Done!`n"

@@ -299,6 +299,7 @@ $extraspath = "$newfolder\extras"
 $reportsbyhostfolder = "$newfolder\reportsbyhost"
 $reportbyvulnfolder = "$newfolder\reportsbyvuln"
 $chartpath = "$newfolder\images\highlevel.png"
+$chartpathVpr = "$newfolder\images\highlevel_vpr.png"
 
 if ($TemplatePath -eq "") 
 {
@@ -343,10 +344,18 @@ function Do-PreReqs() {
 #region DASHBOARD
 
 # Create the html for each host report td element
-function Format-DashboardHtmlItem($ipaddress, $reportsbyhostfolder, $cssclass) 
+function Format-DashboardHtmlItem($hostname, $ipaddress, $reportsbyhostfolder, $cssclass) 
 {
 	$linkpath = $ipaddress.Replace(".", "-")
-	$html = "<td class=""$cssclass""><a href="".\reportsbyhost\$linkpath.html"">$ipaddress</a></td>"
+	$html = "<td class=""$cssclass""><a href="".\reportsbyhost\$linkpath.html"">$hostname<br /><small>($ipaddress)</small></a></td>"
+	return $html
+}
+
+# Create the html for each host report td element
+function Format-DashboardHtmlItemVpr($hostname, $ipaddress, $reportsbyhostfolder, $cssclass) 
+{
+	$linkpath = $ipaddress.Replace(".", "-")
+	$html = "<td class=""$cssclass""><a href="".\reportsbyhost\$linkpath-vpr.html"">$hostname<br /><small>($ipaddress)</small></a></td>"
 	return $html
 }
 
@@ -360,9 +369,15 @@ function Format-DashboardHtmlReport($allhosts, $reportsbyhostfolder)
 	$infos = $allhosts | ?{$_.NumberInfos -gt 0 -and ($_.NumberCriticals -eq 0 -and $_.NumberHighs -eq 0 -and $_.NumberMediums -eq 0 -and $_.NumberLows -eq 0)} | sort NumberInfos -Descending
 	$unsures = $allhosts | ?{$_.NumberUnsures -gt 0 -and ($_.NumberCriticals -eq 0 -and $_.NumberHighs -eq 0 -and $_.NumberMediums -eq 0 -and $_.NumberLows -eq 0 -and $_.NumberInfos -eq 0)} | sort NumberUnsures -Descending
 	
+	$critsVpr = $allhosts | ?{$_.NumberCriticalsVpr -gt 0} | sort NumberCriticalsVpr -Descending
+	$highsVpr = $allhosts | ?{$_.NumberHighsVpr -gt 0 -and $_.NumberCriticalsVpr -eq 0} | sort NumberHighsVpr -Descending
+	$medsVpr = $allhosts | ?{$_.NumberMediumsVpr -gt 0 -and ($_.NumberCriticalsVpr -eq 0 -and $_.NumberHighsVpr -eq 0)} | sort NumberMediumsVpr -Descending
+	$lowsVpr = $allhosts | ?{$_.NumberLowsVpr -gt 0  -and ($_.NumberCriticalsVpr -eq 0 -and $_.NumberHighsVpr -eq 0 -and $_.NumberMediumsVpr -eq 0)} | sort NumberLowsVpr -Descending
+	$infosVpr = $allhosts | ?{$_.NumberInfosVpr -gt 0 -and ($_.NumberCriticalsVpr -eq 0 -and $_.NumberHighsVpr -eq 0 -and $_.NumberMediumsVpr -eq 0 -and $_.NumberLowsVpr -eq 0)} | sort NumberInfosVpr -Descending
+
 	$html = "<table id=""tabips"">"
 	$i = 0
-	$rowmax = 6
+	$rowmax = 3
 	foreach ($c in $crits) 
 	{
 		if ($c.IPAddress -ne $null)
@@ -370,7 +385,7 @@ function Format-DashboardHtmlReport($allhosts, $reportsbyhostfolder)
 			if ($i -eq 0) 
 				{ $html += "<tr>" }
 
-			$html += Format-DashboardHtmlItem $c.IPAddress $reportsbyhostfolder "critbg"
+			$html += Format-DashboardHtmlItem $c.HostName $c.IPAddress $reportsbyhostfolder "critbg"
 			$i += 1
 
 			if ($i -eq $rowmax) 
@@ -385,7 +400,7 @@ function Format-DashboardHtmlReport($allhosts, $reportsbyhostfolder)
 			if ($i -eq 0) 
 				{ $html += "<tr>" }
 
-			$html += Format-DashboardHtmlItem $c.IPAddress $reportsbyhostfolder "highbg"
+			$html += Format-DashboardHtmlItem $c.HostName $c.IPAddress $reportsbyhostfolder "highbg"
 			$i += 1
 
 			if ($i -eq $rowmax) 
@@ -401,7 +416,7 @@ function Format-DashboardHtmlReport($allhosts, $reportsbyhostfolder)
 			if ($i -eq 0) 
 				{ $html += "<tr>" }
 
-			$html += Format-DashboardHtmlItem $c.IPAddress $reportsbyhostfolder "medbg"
+			$html += Format-DashboardHtmlItem $c.HostName $c.IPAddress $reportsbyhostfolder "medbg"
 			$i += 1
 
 			if ($i -eq $rowmax) 
@@ -416,7 +431,7 @@ function Format-DashboardHtmlReport($allhosts, $reportsbyhostfolder)
 			if ($i -eq 0) 
 				{ $html += "<tr>" }
 
-			$html += Format-DashboardHtmlItem $c.IPAddress $reportsbyhostfolder "lowbg"
+			$html += Format-DashboardHtmlItem $c.HostName $c.IPAddress $reportsbyhostfolder "lowbg"
 			$i += 1
 
 			if ($i -eq $rowmax) 
@@ -431,7 +446,7 @@ function Format-DashboardHtmlReport($allhosts, $reportsbyhostfolder)
 			if ($i -eq 0) 
 				{ $html += "<tr>" }
 			
-			$html += Format-DashboardHtmlItem $c.IPAddress $reportsbyhostfolder "infobg"
+			$html += Format-DashboardHtmlItem $c.HostName $c.IPAddress $reportsbyhostfolder "infobg"
 			$i += 1
 
 			if ($i -eq $rowmax) 
@@ -446,7 +461,7 @@ function Format-DashboardHtmlReport($allhosts, $reportsbyhostfolder)
 			if ($i -eq 0) 
 				{ $html += "<tr>" }
 			
-			$html += Format-DashboardHtmlItem $c.IPAddress $reportsbyhostfolder "dunnobg"
+			$html += Format-DashboardHtmlItem $c.HostName $c.IPAddress $reportsbyhostfolder "dunnobg"
 			$i += 1
 
 			if ($i -eq $rowmax) 
@@ -455,6 +470,90 @@ function Format-DashboardHtmlReport($allhosts, $reportsbyhostfolder)
 	}
 	
 	$html += "</table>"
+
+	$html += "<br /><br /><h3>By VPR Score</h3>"
+
+	$html += "<table id=""tabips"">"
+	$i = 0
+	$rowmax = 3
+	foreach ($c in $critsVpr) 
+	{
+		if ($c.IPAddress -ne $null)
+		{
+			if ($i -eq 0) 
+				{ $html += "<tr>" }
+
+			$html += Format-DashboardHtmlItemVpr $c.HostName $c.IPAddress $reportsbyhostfolder "critbg"
+			$i += 1
+
+			if ($i -eq $rowmax) 
+				{$html += "</tr>"; $i = 0 }
+		}
+	}
+	
+	foreach ($c in $highsVpr) 
+	{
+		if ($c.IPAddress -ne $null)
+		{
+			if ($i -eq 0) 
+				{ $html += "<tr>" }
+
+			$html += Format-DashboardHtmlItemVpr $c.HostName $c.IPAddress $reportsbyhostfolder "highbg"
+			$i += 1
+
+			if ($i -eq $rowmax) 
+				{$html += "</tr>"; $i = 0 }
+		}
+	}
+	
+	#Ugh. I hate repeating code like this. Open to suggestions...
+	foreach ($c in $medsVpr) 
+	{
+		if ($c.IPAddress -ne $null)
+		{
+			if ($i -eq 0) 
+				{ $html += "<tr>" }
+
+			$html += Format-DashboardHtmlItemVpr $c.HostName $c.IPAddress $reportsbyhostfolder "medbg"
+			$i += 1
+
+			if ($i -eq $rowmax) 
+				{$html += "</tr>"; $i = 0 }
+		}
+	}
+	
+	foreach ($c in $lowsVpr) 
+	{
+		if ($c.IPAddress -ne $null)
+		{
+			if ($i -eq 0) 
+				{ $html += "<tr>" }
+
+			$html += Format-DashboardHtmlItemVpr $c.HostName $c.IPAddress $reportsbyhostfolder "lowbg"
+			$i += 1
+
+			if ($i -eq $rowmax) 
+				{$html += "</tr>"; $i = 0 }
+		}
+	}
+	
+	foreach ($c in $infosVpr) 
+	{
+		if ($c.IPAddress -ne $null)
+		{
+			if ($i -eq 0) 
+				{ $html += "<tr>" }
+			
+			$html += Format-DashboardHtmlItemVpr $c.HostName $c.IPAddress $reportsbyhostfolder "infobg"
+			$i += 1
+
+			if ($i -eq $rowmax) 
+				{$html += "</tr>"; $i = 0 }
+		}
+	}
+	
+	$html += "</table>"
+
 	return $html
 }
 
@@ -471,6 +570,12 @@ function Create-DashboardReport($allhostinfo, $hostreportlisthtml, $foldername, 
 	$totallow = 0
 	$totalinfo = 0
 	$totalall = 0
+
+	$totalcritVpr = 0
+	$totalhighVpr = 0
+	$totalmedVpr = 0
+	$totallowVpr = 0
+	$totalinfoVpr = 0
 	
 	foreach ($hostinfo in $allhostinfo) 
 	{
@@ -479,6 +584,12 @@ function Create-DashboardReport($allhostinfo, $hostreportlisthtml, $foldername, 
 		$totalmed += ($hostinfo.Vulnerabilities | ?{$_.RiskFactor -eq "Medium"} | measure).Count
 		$totallow += ($hostinfo.Vulnerabilities | ?{$_.RiskFactor -eq "Low"} | measure).Count
 		$totalinfo += ($hostinfo.Vulnerabilities | ?{$_.RiskFactor -eq "Info"} | measure).Count
+
+		$totalcritVpr += ($hostinfo.Vulnerabilities | ?{$_.VprScore -ge 9} | measure).Count
+		$totalhighVpr += ($hostinfo.Vulnerabilities | ?{$_.VprScore -ge 7 -and $_.vprScore -lt 9} | measure).Count
+		$totalmedVpr += ($hostinfo.Vulnerabilities | ?{$_.VprScore -ge 4 -and $_.vprScore -lt 7} | measure).Count
+		$totallowVpr += ($hostinfo.Vulnerabilities | ?{$_.VprScore -ge 1 -and $_.vprScore -lt 4} | measure).Count
+		$totalinfoVpr += ($hostinfo.Vulnerabilities | ?{$_.VprScore -le 1} | measure).Count
 	}
 	
 	$totalall = ($totalcrit + $totalhigh + $totalmed + $totallow + $totalinfo)
@@ -491,6 +602,11 @@ function Create-DashboardReport($allhostinfo, $hostreportlisthtml, $foldername, 
 		"TOTALLOW" = $totallow
 		"TOTALINFO" = $totalinfo
 		"TOTALFINDINGS" = $totalall
+		"TOTALCRITICALVPR" = $totalcritVpr
+		"TOTALHIGHVPR" = $totalhighVpr
+		"TOTALMEDIUMVPR" = $totalmedVpr
+		"TOTALLOWVPR" = $totallowVpr
+		"TOTALINFOVPR" = $totalinfoVpr
 	}
 
 	$script:chartstats = 
@@ -499,6 +615,14 @@ function Create-DashboardReport($allhostinfo, $hostreportlisthtml, $foldername, 
 		"High" = $totalhigh
 		"Medium" = $totalmed
 		"Low" = $totallow
+	}
+
+	$script:chartstatsVpr = 
+	@{
+		"Critical" = $totalcritVpr
+		"High" = $totalhighVpr
+		"Medium" = $totalmedVpr
+		"Low" = $totallowVpr
 	}
 	
 	$reportlinks = Format-DashboardHtmlReport $allhostinfo $reportsbyhostfolder
@@ -667,6 +791,58 @@ function Create-HostReport($targethost, $foldername, $hosthtml)
 	$data = $data | %{$_.Replace("|TOTALMEDIUM|", $totalmed)}
 	$data = $data | %{$_.Replace("|TOTALLOW|", $totallow)}
 	$data = $data | %{$_.Replace("|TOTALINFORMATIONAL|", $totalinfo)}
+	$data = $data | %{$_.Replace("|TOTALINFORMATIONALVPR|", $totalinfo)}
+	$data = $data | %{$_.Replace("|REPORTINFO|", $strhtml)}
+	$data = $data | %{$_.Replace("|HOST|", $targethost.HostName + " (" + $targethost.IPAddress + ")")}
+	New-Item -Path $findingssavepath -ItemType File -Force | Out-Null
+	$data | Set-Content -Path $findingssavepath
+	
+	return $findingfilename
+}
+
+# This function takes a target host from the collection and creates an
+# html report page for it.
+function Create-HostReportVpr($targethost, $foldername, $hosthtml) 
+{
+	$hostsavename = $targethost.IPAddress.Replace(".", "-")
+	$findingstemplate = "$htmltemplatedir\templateFindingsVpr.html"
+	$findingfilename = "$hostsavename-vpr.html"
+	$findingssavepath = "$foldername\$findingfilename"
+	$findingsdata_master = Get-Content $findingstemplate 
+	
+	### Write Findings HTML ###
+	Write-Host "[*] Creating VPR html report for" $targethost.IPAddress
+	$strhtml = ""
+	$completedvulns = @()
+	
+	foreach ($item in $targethost.Vulnerabilities | sort SortOrderVpr ) 
+	{
+		if ($completedvulns -notcontains $item.VulnerabilityName) 
+		{
+			$strhtml += "<h6><span class=""vulnlabel " + $item.VprText.ToLower() + """>" + $item.VprText.ToUpper() + "</span>&nbsp;" + $item.VulnerabilityName + "</h6>"
+			$strhtml += $hosthtml[$item.VulnerabilityName]
+			$strhtml += "</div>"
+			$completedvulns += $item.VulnerabilityName
+		}
+	}
+
+	### Calculate Summary Data ###
+	$totalcrit = ($targethost.Vulnerabilities | ?{$_.VprScore -ge 9} | measure).Count
+	$totalhigh = ($targethost.Vulnerabilities | ?{$_.VprScore -ge 7 -and $_.vprScore -lt 9} | measure).Count
+	$totalmed = ($targethost.Vulnerabilities | ?{$_.VprScore -ge 4 -and $_.vprScore -lt 7} | measure).Count
+	$totallow = ($targethost.Vulnerabilities | ?{$_.VprScore -ge 1 -and $_.vprScore -lt 4} | measure).Count
+	$totalinfo = ($targethost.Vulnerabilities | ?{$_.VprScore -le 1} | measure).Count
+	$totalfindings = $totalcrit + $totalhigh + $totalmed + $totallow + $totalinfo
+	
+	### Substitute Data in Template ###
+	$findingsdata = $findingsdata_master.Clone()
+	$data = $findingsdata | %{$_.Replace("|TOTALFINDINGS|", $totalfindings)}
+	$data = $data | %{$_.Replace("|TOTALCRITICAL|", $totalcrit)}
+	$data = $data | %{$_.Replace("|TOTALHIGH|", $totalhigh)}
+	$data = $data | %{$_.Replace("|TOTALMEDIUM|", $totalmed)}
+	$data = $data | %{$_.Replace("|TOTALLOW|", $totallow)}
+	$data = $data | %{$_.Replace("|TOTALINFORMATIONAL|", $totalinfo)}
+	$data = $data | %{$_.Replace("|TOTALINFORMATIONALVPR|", $totalinfo)}
 	$data = $data | %{$_.Replace("|REPORTINFO|", $strhtml)}
 	$data = $data | %{$_.Replace("|HOST|", $targethost.HostName + " (" + $targethost.IPAddress + ")")}
 	New-Item -Path $findingssavepath -ItemType File -Force | Out-Null
@@ -919,7 +1095,7 @@ function Create-CISDashboard($allhostinfo, $hostreportlisthtml, $foldername, $co
 		if ($i -eq 0) 
 			{ $html += "<tr>" }
 
-		$html += Format-DashboardHtmlItem $hostinfo.IPAddress $reportsbyhostfolder ""
+		$html += Format-DashboardHtmlItem $hostinfo.HostName $hostinfo.IPAddress $reportsbyhostfolder ""
 		$i += 1
 		if ($i -eq $rowmax) 
 			{$html += "</tr>"; $i = 0 }
@@ -1006,6 +1182,14 @@ function Parse-NessusFile($path)
 		$numlows = 0
 		$numinfos = 0
 		$numunsure = 0
+
+		$numcrits_vpr = 0
+		$numhighs_vpr = 0
+		$nummeds_vpr = 0
+		$numlows_vpr = 0
+		$numinfos_vpr = 0
+		$numunsure_vpr = 0
+
 		$opentcpports = ""
 		$openudpports = ""
 		
@@ -1049,6 +1233,7 @@ function Parse-NessusFile($path)
 			$object | Add-Member –MemberType NoteProperty –Name Description –Value $ri.description
 			$object | Add-Member –MemberType NoteProperty –Name Synopsis –Value $ri.synopsis
 			$object | Add-Member –MemberType NoteProperty –Name RiskFactor –Value $ri.risk_factor
+			$object | Add-Member -MemberType NoteProperty -Name VprScore -Value $ri.vpr_score
 			$object | Add-Member –MemberType NoteProperty –Name Output –Value $ri.plugin_output
 			$object | Add-Member –MemberType NoteProperty –Name Solution –Value $ri.solution
 			$object | Add-Member –MemberType NoteProperty –Name Port –Value $ri.port
@@ -1109,6 +1294,37 @@ function Parse-NessusFile($path)
 				}
 			}
 
+			if ($ri.vpr_score -ge 9) 
+			{
+				$object | Add-Member –MemberType NoteProperty –Name SortOrderVpr -Value 1
+				$object | Add-Member -MemberType NoteProperty -Name VprText -Value "Critical"
+				$numcrits_vpr += 1
+			} 
+			elseif($ri.vpr_score -ge 7) 
+			{
+				$object | Add-Member –MemberType NoteProperty –Name SortOrderVpr -Value 2
+				$object | Add-Member -MemberType NoteProperty -Name VprText -Value "High"
+				$numhighs_vpr += 1
+			}
+			elseif($ri.vpr_score -ge 4) 
+			{
+				$object | Add-Member –MemberType NoteProperty –Name SortOrderVpr -Value 3
+				$object | Add-Member -MemberType NoteProperty -Name VprText -Value "Medium"
+				$nummeds_vpr += 1
+			}
+			elseif($ri.vpr_score -ge 1) 
+			{
+				$object | Add-Member –MemberType NoteProperty –Name SortOrderVpr -Value 4
+				$object | Add-Member -MemberType NoteProperty -Name VprText -Value "Low"
+				$numlows_vpr += 1
+			}
+			else
+			{
+				$object | Add-Member –MemberType NoteProperty –Name SortOrderVpr -Value 5
+				$object | Add-Member -MemberType NoteProperty -Name VprText -Value "Info"
+				$numinfos_vpr += 1
+			}
+
 			$vulns += $object
 		}
 		
@@ -1118,6 +1334,13 @@ function Parse-NessusFile($path)
 		$hostinfo | Add-Member –MemberType NoteProperty -Name NumberLows -Value $numlows
 		$hostinfo | Add-Member –MemberType NoteProperty -Name NumberInfos -Value $numinfos
 		$hostinfo | Add-Member –MemberType NoteProperty -Name NumberUnsures -Value $numunsure
+
+		$hostinfo | Add-Member –MemberType NoteProperty -Name NumberCriticalsVpr -Value $numcrits_vpr
+		$hostinfo | Add-Member –MemberType NoteProperty -Name NumberHighsVpr -Value $numhighs_vpr
+		$hostinfo | Add-Member –MemberType NoteProperty -Name NumberMediumsVpr -Value $nummeds_vpr
+		$hostinfo | Add-Member –MemberType NoteProperty -Name NumberLowsVpr -Value $numlows_vpr
+		$hostinfo | Add-Member –MemberType NoteProperty -Name NumberInfosVpr -Value $numinfos_vpr
+		$hostinfo | Add-Member –MemberType NoteProperty -Name NumberUnsuresVpr -Value $numunsure_vpr
 		
 		if ($opentcpports -ne $null) 
 		{
@@ -1360,6 +1583,7 @@ else
 		{
 			$hosthtml = Format-HostHtml $hostinfo $false
 			$findingreport = Create-HostReport $hostinfo $reportsbyhostfolder $hosthtml
+			$findingreportVpr = Create-HostReportVpr $hostinfo $reportsbyhostfolder $hosthtml
 		}
 	}
 
@@ -1408,9 +1632,12 @@ $csvinfo | Export-CSV -Path $csvpath
 # Write out the chart. $chartstats is populated in the respective Create-Dashboard functions.
 Write-Host "[*] Saving chart to $chartpath"
 Create-PieChart "High Level" $chartstats $chartpath
+Write-Host "[*] Saving chart to $chartpathVpr"
+Create-PieChart "High Leve VPR" $chartstatsVpr $chartpathVpr
 
 # Cleanup
 Remove-Item -Path "$newfolder\templateFindings.html"
+Remove-Item -Path "$newfolder\templateFindingsVpr.html"
 Remove-Item -Path "$newfolder\templateDashboard.html"
 Remove-Item -Path "$newfolder\templateByVuln.html" -ErrorAction SilentlyContinue
 

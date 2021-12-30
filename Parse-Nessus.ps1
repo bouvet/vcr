@@ -31,7 +31,7 @@ are named "template-networkscan" and "template-cisbenchmark". Do not rename them
 
 There is nothing special about the template itself. I downloaded it from html5up.net (free for personal/commercial use). If you wish
 to use your own template, simply look through the temlate*.html files in the template directory and pull out the substitution variables (they
-all look like |SOMEVARIABLE|) and put them into your own template. You'll also want to search for "SynerComm" and substitute your own company info.
+all look like |SOMEVARIABLE|) and put them into your own template. You'll also want to search for "Bouvet" and substitute your own company info.
 
 .PARAMETER NessusFilePath
 [REQUIRED] This is the path to the exported .nessus file
